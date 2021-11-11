@@ -1,0 +1,188 @@
+body
+{
+	background-color:	#000000;
+	color:			#ffffff;
+	margin:			0;
+	font-family:		Verdana, sans-serif;
+	overflow-y:		scroll;
+}
+
+h2
+{
+	font-style:		italic;
+	margin-left:		10px;
+}
+
+a:link, a:visited
+{
+	color:			#00a3b3;
+	text-decoration:	none;
+	font-weight:		bold;
+}
+
+a:hover
+{
+	color:			#00d6eb;
+	text-shadow:		0px 0px 40px #bffaff;
+}
+
+a:active
+{
+	color:			#00e8ff;
+	text-shadow:		0px 0px 40px #d1fbff;
+}
+
+div.entry1
+{
+	padding:		5px;
+	background-color:	#32005e;
+	border-bottom:		dashed 1px #8800ff;
+}
+
+div.entry1:hover
+{
+	background-color:	#430080;
+}
+
+span.ua
+{
+	font-size:		xx-small;
+	font-style:		italic;
+	display:		none;
+}
+
+div.entry2
+{
+	padding:		5px;
+	background-color:	#1c0036;
+	border-bottom:		dashed 1px #8800ff;
+}
+
+div.entry2:hover
+{
+	background-color:	#260047;
+}
+
+div.entry1:active, div.entry2:active
+{
+	background-color:	#8800ff;
+	border-bottom-color:	#000000;
+}
+
+div.entry1:focus > span.ua, div.entry2:focus > span.ua
+{
+	display:		inline;
+}
+
+span.name
+{
+	font-weight:		bold;
+	font-style:		italic;
+	font-size:		large;
+}
+
+span.date
+{
+	float:			right;
+	font-style:		italic;
+	font-size:		large;
+}
+
+span.entry
+{
+	font-size:		normal;
+}
+
+div.center
+{
+	text-align:		center;
+}
+
+div.w10
+{
+	width:			10%;
+	float:			left;
+}
+
+div.w90
+{
+	width:			90%;
+	float:			right;
+}
+
+div.red
+{
+	font-weight:		bold;
+	color:			#ff0000;
+}
+
+div.green
+{
+	font-weight:		bold;
+	color:			#009f00;
+}
+
+div.w90r
+{
+	width:			90%;
+	float:			right;
+}
+
+input.w100
+{
+	width:			100%;
+	box-sizing:		border-box;
+	background-color:	#000000;
+	color:			#ffffff;
+	border:			solid 1px #ffffff;
+}
+
+input.button200
+{
+	width:			200px;
+	box-sizing:		border-box;
+	color:			#ffffff;
+	background-color:	#000000;
+	border:			solid 1px #ffffff;
+}
+
+input.button200:hover
+{
+	background-color:	#ffffff;
+	color:			#000000;
+}
+
+input.button200:active
+{
+	background-color:	#8600ff;
+	color:			#ffffff;
+	border-color:		#8600ff;
+}
+
+textarea.w100
+{
+	height:			12em;
+	width:			100%;
+	box-sizing:		border-box;
+	background-color:	#000000;
+	color:			#ffffff;
+	border:			solid 1px #ffffff;
+}
+
+form.margin
+{
+	margin:			20px;
+	box-sizing:		border-box;
+}
+
+hr
+{
+	background:		linear-gradient(to right, #ffffff, #000000, #ffffff);
+	height:			1px;
+	border:			0px;
+}
+
+label
+{
+	font-weight:		bold;
+}
