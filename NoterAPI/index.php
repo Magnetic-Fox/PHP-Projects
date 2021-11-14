@@ -4,7 +4,7 @@ include('mysql-connect.php');
 include('noter-config.php');
 header("Content-Type: application/json");
 
-$server_info=array("name" => $server_name, "version" => "1.0");
+$server_info=array("name" => $server_name, "timezone" => $server_timezone, "version" => "1.0");
 $response=array();
 
 /*
@@ -24,6 +24,8 @@ retrieve	Get note
 add		Add note
 update		Update note
 delete		Delete note
+lock		Lock note
+unlock		Unlock note
 
 
  Information codes:
@@ -33,6 +35,9 @@ delete		Delete note
 
 -512	Internal Server Error (DB Connection Error)
 
+-14	Note already unlocked
+-13	Note already locked
+-12	Note locked
 -11	User removal failure
 -10	User does not exist
 -9	Note does not exist
@@ -56,30 +61,22 @@ delete		Delete note
 7	Note updated successfully
 8	Note deleted successfully
 9	User info retrieved successfully
+10	Note locked successfully
+11	Note unlocked successfully
 
 */
 
-/*
-if(!$noter_enabled)
-{
-	$answer_info=array("code" => -768, "attachment" => array());
-	$response=array("server" => $server_info, "answer_info" => $answer_info);
-	die(json_encode($response));
-}
 
-if($conn->connect_error)
-{
-	$answer_info=array("code" => -512, "attachment" => array());
-	$response=array("server" => $server_info, "answer_info" => $answer_info);
-	die(json_encode($response));
-}
-*/
+
+// --------------------------------------------------------------------------------------------
+// Definition of functions
+// --------------------------------------------------------------------------------------------
 
 function nowDate()
 {
 	global $server_timezone;
 	date_default_timezone_set($server_timezone);
-	$dt=new DateTime();
+	$dt=DateTime::createFromFormat("U.u", microtime(true));
 	$dt->setTimeZone(new DateTimeZone($server_timezone));
 	return $dt->format("Y-m-d H:i:s.u");
 }
@@ -180,6 +177,32 @@ function answerInfo($code, $attachment = array())
 {
 	return array("code" => $code, "attachment" => $attachment);
 }
+
+function noteLocked($noteID)
+{
+	global $conn;
+	$query="SELECT Locked FROM Noter_Entries WHERE ID=?";
+	$stmt=$conn->prepare($query);
+	$stmt->bind_param("i",$noteID);
+	$stmt->execute();
+	$stmt->bind_result($locked);
+	$stmt->fetch();
+	return $locked;
+}
+
+function noteLockState($noteID, $userID, $lockState)
+{
+	global $conn;
+	$query="UPDATE Noter_Entries SET Locked=? WHERE ID=? AND UserID=?";
+	$stmt=$conn->prepare($query);
+	$stmt->bind_param("iii",$lockState,$noteID,$userID);
+	$stmt->execute();
+	return ($conn->affected_rows>0);
+}
+
+// --------------------------------------------------------------------------------------------
+// Main part of the script.
+// --------------------------------------------------------------------------------------------
 
 if(!$noter_enabled)
 {
@@ -371,15 +394,15 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 				{
 					if(array_key_exists("noteID",$_POST))
 					{
-						$query="SELECT ID, Subject, Entry, DateAdded, LastModified, UserAgent, LastUserAgent FROM Noter_Entries WHERE ID=? AND UserID=?";
+						$query="SELECT ID, Subject, Entry, DateAdded, LastModified, Locked, UserAgent, LastUserAgent FROM Noter_Entries WHERE ID=? AND UserID=?";
 						$stmt=$conn->prepare($query);
 						$stmt->bind_param("ii",$_POST["noteID"],$res);
 						$stmt->execute();
-						$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$userAgent,$lastUserAgent);
+						$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$locked,$userAgent,$lastUserAgent);
 						if($stmt->fetch())
 						{
 							$answer_info=answerInfo(5,array("note"));
-							$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => $dateAdded, "last_modified" => $lastModified, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
+							$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => $dateAdded, "last_modified" => $lastModified, "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
 						}
 						else
 						{
@@ -476,18 +499,26 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$entt=trim($_POST["entry"]);
 						if(($subt!="") && ($entt!=""))
 						{
-							$now=nowDate();
-							$query="UPDATE Noter_Entries SET Subject=?, Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
-							$stmt=$conn->prepare($query);
-							$stmt->bind_param("ssssssii",$subt,$entt,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_POST["noteID"],$res);
-							$stmt->execute();
-							if($conn->affected_rows>0)
+							$noteID=$_POST["noteID"];
+							if(noteLocked($noteID))
 							{
-								$answer_info=answerInfo(7);
+								$answer_info=answerInfo(-12);
 							}
 							else
 							{
-								$answer_info=answerInfo(-9);
+								$now=nowDate();
+								$query="UPDATE Noter_Entries SET Subject=?, Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
+								$stmt=$conn->prepare($query);
+								$stmt->bind_param("ssssssii",$subt,$entt,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$noteID,$res);
+								$stmt->execute();
+								if($conn->affected_rows>0)
+								{
+									$answer_info=answerInfo(7);
+								}
+								else
+								{
+									$answer_info=answerInfo(-9);
+								}
 							}
 						}
 						else
@@ -523,22 +554,110 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 				{
 					if(array_key_exists("noteID",$_POST))
 					{
-						$query="DELETE FROM Noter_Entries WHERE ID=? AND UserID=?";
-						$stmt=$conn->prepare($query);
-						$stmt->bind_param("ii",$_POST["noteID"],$res);
-						$stmt->execute();
-						if($conn->affected_rows>0)
+						$noteID=$_POST["noteID"];
+						if(noteLocked($noteID))
 						{
-							$answer_info=answerInfo(8);
+							$answer_info=answerInfo(-12);
 						}
 						else
 						{
-							$answer_info=answerInfo(-9);
+							$query="DELETE FROM Noter_Entries WHERE ID=? AND UserID=?";
+							$stmt=$conn->prepare($query);
+							$stmt->bind_param("ii",$noteID,$res);
+							$stmt->execute();
+							if($conn->affected_rows>0)
+							{
+								$answer_info=answerInfo(8);
+							}
+							else
+							{
+								$answer_info=answerInfo(-9);
+							}
 						}
 					}
 					else
 					{
 						$answer_info=answerInfo(-8);
+					}
+				}
+				else if($res==-1)
+				{
+					$answer_info=answerInfo(-7);
+				}
+				else
+				{
+					$answer_info=answerInfo(-6);
+				}
+			}
+			else
+			{
+				$answer_info=answerInfo(-4);
+			}
+		}
+		else if($_POST["action"]=="lock")
+		{
+			if(($ut!="") && ($pt!=""))
+			{
+				$res=login($ut,$pt);
+				if($res>=1)
+				{
+					if(array_key_exists("noteID",$_POST))
+					{
+						if(noteLockState($_POST["noteID"],$res,true))
+						{
+							$answer_info=answerInfo(10);
+						}
+						else
+						{
+							if(noteLocked($_POST["noteID"]))
+							{
+								$answer_info=answerInfo(-13);
+							}
+							else
+							{
+								$answer_info=answerInfo(-9);
+							}
+						}
+					}
+				}
+				else if($res==-1)
+				{
+					$answer_info=answerInfo(-7);
+				}
+				else
+				{
+					$answer_info=answerInfo(-6);
+				}
+			}
+			else
+			{
+				$answer_info=answerInfo(-4);
+			}
+		}
+		else if($_POST["action"]=="unlock")
+		{
+			if(($ut!="") && ($pt!=""))
+			{
+				$res=login($ut,$pt);
+				if($res>=1)
+				{
+					if(array_key_exists("noteID",$_POST))
+					{
+						if(noteLockState($_POST["noteID"],$res,false))
+						{
+							$answer_info=answerInfo(11);
+						}
+						else
+						{
+							if(noteLocked($_POST["noteID"]))
+							{
+								$answer_info=answerInfo(-9);
+							}
+							else
+							{
+								$answer_info=answerInfo(-14);
+							}
+						}
 					}
 				}
 				else if($res==-1)
