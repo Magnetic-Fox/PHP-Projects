@@ -30,7 +30,7 @@ Here is a list of projects pushed to this repository.
 WarmUP          [03-04.11.2021]
 SQLTest         [04.11.2021]
 MIMETest        [07-08.11.2021]
-NoterAPI        [08-11.11.2021]
+NoterAPI        [08-14.11.2021]
 ```
 
 ## Disclaimer
