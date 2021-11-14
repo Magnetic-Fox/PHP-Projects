@@ -1,11 +1,10 @@
 <?php
 
 include('mysql-connect.php');
+include('noter-config.php');
 header("Content-Type: application/json");
 
-$srv_tz="Europe/Warsaw";
-$server_info=array("name" => "NoterAPI", "version" => "1.0");
-
+$server_info=array("name" => $server_name, "version" => "1.0");
 $response=array();
 
 /*
@@ -29,6 +28,8 @@ delete		Delete note
 
  Information codes:
 --------------------
+
+-768	Service temporarily disabled
 
 -512	Internal Server Error (DB Connection Error)
 
@@ -58,11 +59,29 @@ delete		Delete note
 
 */
 
+/*
+if(!$noter_enabled)
+{
+	$answer_info=array("code" => -768, "attachment" => array());
+	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	die(json_encode($response));
+}
+
 if($conn->connect_error)
 {
 	$answer_info=array("code" => -512, "attachment" => array());
 	$response=array("server" => $server_info, "answer_info" => $answer_info);
 	die(json_encode($response));
+}
+*/
+
+function nowDate()
+{
+	global $server_timezone;
+	date_default_timezone_set($server_timezone);
+	$dt=new DateTime();
+	$dt->setTimeZone(new DateTimeZone($server_timezone));
+	return $dt->format("Y-m-d H:i:s.u");
 }
 
 function userExists($username)
@@ -114,10 +133,11 @@ function register($username, $password)
 	{
 		if(($username!="") && ($password!=""))
 		{
+			$now=nowDate();
 			$passwordHash=password_hash($password,PASSWORD_DEFAULT);
-			$query="INSERT INTO Noter_Users(UserName, PasswordHash, RemoteAddress, ForwardedFor, UserAgent, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+			$query="INSERT INTO Noter_Users(UserName, PasswordHash, DateRegistered, RemoteAddress, ForwardedFor, UserAgent, LastChanged, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 			$stmt=$conn->prepare($query);
-			$stmt->bind_param("ssssssss",$username,$passwordHash,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
+			$stmt->bind_param("ssssssssss",$username,$passwordHash,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
 			$stmt->execute();
 			if($conn->affected_rows!=-1)
 			{
@@ -130,15 +150,14 @@ function register($username, $password)
 
 function userUpdate($username, $password, $newPassword)
 {
-	global $srv_tz;
 	global $conn;
+	$newPassword=trim($newPassword);
 	if(($username!="") && ($password!="") && ($newPassword!=""))
 	{
 		$res=login($username,$password);
 		if($res>=1)
 		{
-			date_default_timezone_set($srv_tz);
-			$now=date("Y-m-d H:i:s");
+			$now=nowDate();
 			$passwordHash=password_hash($newPassword,PASSWORD_DEFAULT);
 			$query="UPDATE Noter_Users SET PasswordHash=?, LastChanged=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=?";
 			$stmt=$conn->prepare($query);
@@ -157,10 +176,28 @@ function userUpdate($username, $password, $newPassword)
 	return 0;
 }
 
+function answerInfo($code, $attachment = array())
+{
+	return array("code" => $code, "attachment" => $attachment);
+}
+
+if(!$noter_enabled)
+{
+	$answer_info=answerInfo(-768);
+	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	die(json_encode($response));
+}
+
+if($conn->connect_error)
+{
+	$answer_info=answerInfo(-512);
+	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	die(json_encode($response));
+}
+
 if($_SERVER["REQUEST_METHOD"]=="GET")
 {
-	$answer_info=array("code" => 0, "attachment" => array());
-	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	$answer_info=answerInfo(0);
 }
 else if($_SERVER["REQUEST_METHOD"]=="POST")
 {
@@ -173,17 +210,16 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 			$res=register($ut,$pt);
 			if($res==-1)
 			{
-				$answer_info=array("code" => -3, "attachment" => array());
+				$answer_info=answerInfo(-3);
 			}
 			else if($res==1)
 			{
-				$answer_info=array("code" => 1, "attachment" => array());
+				$answer_info=answerInfo(1);
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
+				$answer_info=answerInfo(-4);
 			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
 		}
 		else if($_POST["action"]=="change")
 		{
@@ -194,27 +230,26 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 					$res=userUpdate($ut,$pt,$_POST["newPassword"]);
 					if($res==1)
 					{
-						$answer_info=array("code" => 2, "attachment" => array());
+						$answer_info=answerInfo(2);
 					}
 					else if($res==-1)
 					{
-						$answer_info=array("code" => -7, "attachment" => array());
+						$answer_info=answerInfo(-7);
 					}
 					else
 					{
-						$answer_info=array("code" => -6, "attachment" => array());
+						$answer_info=answerInfo(-6);
 					}
 				}
 				else
 				{
-					$answer_info=array("code" => -8, "attachment" => array());
+					$answer_info=answerInfo(-8);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
+				$answer_info=answerInfo(-4);
 			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
 		}
 		else if($_POST["action"]=="info")
 		{
@@ -230,25 +265,20 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 					$stmt->bind_result($id, $username, $dateRegistered, $userAgent, $lastChanged, $lastUserAgent);
 					$stmt->fetch();
 					$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => $dateRegistered, "user_agent" => $userAgent, "last_changed" => $lastChanged, "last_user_agent" => $lastUserAgent));
-					$answer_info=array("code" => 9, "attachment" => array("user"));
+					$answer_info=answerInfo(9,array("user"));
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
-			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
-			if(isset($answer))
-			{
-				$response["answer"]=$answer;
+				$answer_info=answerInfo(-4);
 			}
 		}
 		else if($_POST["action"]=="remove")
@@ -270,32 +300,31 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$stmt->execute();
 						if($conn->affected_rows>0)
 						{
-							$answer_info=array("code" => 3, "attachment" => array());
+							$answer_info=answerInfo(3);
 						}
 						else
 						{
-							$answer_info=array("code" => -10, "attachment" => array());
+							$answer_info=answerInfo(-10);
 						}
 					}
 					else
 					{
-						$answer_info=array("code" => -11, "attachment" => array());
+						$answer_info=answerInfo(-11);
 					}
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
+				$answer_info=answerInfo(-4);
 			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
 		}
 		else if($_POST["action"]=="list")
 		{
@@ -316,26 +345,21 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$count++;
 						array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => $lastModified));
 					}
-					$answer_info=array("code" => 4, "attachment" => array("count","notes_summary"));
+					$answer_info=answerInfo(4,array("count","notes_summary"));
 					$answer=array("count" => $count, "notes_summary" => $notesSummary);
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
-			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
-			if(isset($answer))
-			{
-				$response["answer"]=$answer;
+				$answer_info=answerInfo(-4);
 			}
 		}
 		else if($_POST["action"]=="retrieve")
@@ -354,36 +378,31 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$stmt->bind_result($id,$subject,$entry,$dateAdded,$lastModified,$userAgent,$lastUserAgent);
 						if($stmt->fetch())
 						{
-							$answer_info=array("code" => 5, "attachment" => array("note"));
+							$answer_info=answerInfo(5,array("note"));
 							$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => $dateAdded, "last_modified" => $lastModified, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
 						}
 						else
 						{
-							$answer_info=array("code" => -9, "attachment" => array());
+							$answer_info=answerInfo(-9);
 						}
 					}
 					else
 					{
-						$answer_info=array("code" => -8, "attachment" => array());
+						$answer_info=answerInfo(-8);
 					}
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
-			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
-			if(isset($answer))
-			{
-				$response["answer"]=$answer;
+				$answer_info=answerInfo(-4);
 			}
 		}
 		else if($_POST["action"]=="add")
@@ -399,13 +418,14 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$entt=trim($_POST["entry"]);
 						if(($subt!="") && ($entt!=""))
 						{
-							$query="INSERT INTO Noter_Entries(UserID, Subject, Entry, RemoteAddress, ForwardedFor, UserAgent, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+							$now=nowDate();
+							$query="INSERT INTO Noter_Entries(UserID, Subject, Entry, DateAdded, LastModified, RemoteAddress, ForwardedFor, UserAgent, LastRemoteAddress, LastForwardedFor, LastUserAgent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 							$stmt=$conn->prepare($query);
-							$stmt->bind_param("issssssss",$res,$subt,$entt,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
+							$stmt->bind_param("issssssssss",$res,$subt,$entt,$now,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"]);
 							$stmt->execute();
 							if($conn->affected_rows!=-1)
 							{
-								$answer_info=array("code" => 6, "attachment" => array("new_id"));
+								$answer_info=answerInfo(6,array("new_id"));
 								$query="SELECT MAX(ID) FROM Noter_Entries WHERE UserID=?";
 								$stmt=$conn->prepare($query);
 								$stmt->bind_param("i",$res);
@@ -416,36 +436,31 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 							}
 							else
 							{
-								$answer_info=array("code" => -512, "attachment" => array());
+								$answer_info=answerInfo(-512);
 							}
 						}
 						else
 						{
-							$answer_info=array("code" => -8, "attachment" => array());
+							$answer_info=answerInfo(-8);
 						}
 					}
 					else
 					{
-						$answer_info=array("code" => -8, "attachment" => array());
+						$answer_info=answerInfo(-8);
 					}
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
-			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
-			if(isset($answer))
-			{
-				$response["answer"]=$answer;
+				$answer_info=answerInfo(-4);
 			}
 		}
 		else if($_POST["action"]=="update")
@@ -461,45 +476,43 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$entt=trim($_POST["entry"]);
 						if(($subt!="") && ($entt!=""))
 						{
-							date_default_timezone_set($srv_tz);
-							$now=date("Y-m-d H:i:s");
+							$now=nowDate();
 							$query="UPDATE Noter_Entries SET Subject=?, Entry=?, LastModified=?, LastRemoteAddress=?, LastForwardedFor=?, LastUserAgent=? WHERE ID=? AND UserID=?";
 							$stmt=$conn->prepare($query);
 							$stmt->bind_param("ssssssii",$subt,$entt,$now,$_SERVER["REMOTE_ADDR"],$_SERVER["HTTP_X_FORWARDED_FOR"],$_SERVER["HTTP_USER_AGENT"],$_POST["noteID"],$res);
 							$stmt->execute();
 							if($conn->affected_rows>0)
 							{
-								$answer_info=array("code" => 7, "attachment" => array());
+								$answer_info=answerInfo(7);
 							}
 							else
 							{
-								$answer_info=array("code" => -9, "attachment" => array());
+								$answer_info=answerInfo(-9);
 							}
 						}
 						else
 						{
-							$answer_info=array("code" => -8, "attachment" => array());
+							$answer_info=answerInfo(-8);
 						}
 					}
 					else
 					{
-						$answer_info=array("code" => -8, "attachment" => array());
+						$answer_info=answerInfo(-8);
 					}
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
+				$answer_info=answerInfo(-4);
 			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
 		}
 		else if($_POST["action"]=="delete")
 		{
@@ -516,49 +529,51 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						$stmt->execute();
 						if($conn->affected_rows>0)
 						{
-							$answer_info=array("code" => 8, "attachment" => array());
+							$answer_info=answerInfo(8);
 						}
 						else
 						{
-							$answer_info=array("code" => -9, "attachment" => array());
+							$answer_info=answerInfo(-9);
 						}
 					}
 					else
 					{
-						$answer_info=array("code" => -8, "attachment" => array());
+						$answer_info=answerInfo(-8);
 					}
 				}
 				else if($res==-1)
 				{
-					$answer_info=array("code" => -7, "attachment" => array());
+					$answer_info=answerInfo(-7);
 				}
 				else
 				{
-					$answer_info=array("code" => -6, "attachment" => array());
+					$answer_info=answerInfo(-6);
 				}
 			}
 			else
 			{
-				$answer_info=array("code" => -4, "attachment" => array());
+				$answer_info=answerInfo(-4);
 			}
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
 		}
 		else
 		{
-			$answer_info=array("code" => -5, "attachment" => array());
-			$response=array("server" => $server_info, "answer_info" => $answer_info);
+			$answer_info=answerInfo(-5);
 		}
 	}
 	else
 	{
-		$answer_info=array("code" => -2, "attachment" => array());
-		$response=array("server" => $server_info, "answer_info" => $answer_info);
+		$answer_info=answerInfo(-2);
 	}
 }
 else
 {
-	$answer_info=array("code" => -1, "attachment" => array());
-	$response=array("server" => $server_info, "answer_info" => $answer_info);
+	$answer_info=answerInfo(-1);
+}
+
+$response=array("server" => $server_info, "answer_info" => $answer_info);
+if(isset($answer))
+{
+	$response["answer"]=$answer;
 }
 
 echo json_encode($response);
