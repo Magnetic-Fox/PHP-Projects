@@ -9,8 +9,8 @@ $response=array();
 
 /*
 
-NoterAPI v1.0
-(C)2021 Bartłomiej "Magnetic-Fox" Węgrzyn!
+NoterAPI v1.0a
+(C)2021-2023 Bartłomiej "Magnetic-Fox" Węgrzyn!
 
  Actions:
 ----------
@@ -71,6 +71,11 @@ unlock		Unlock note
 // --------------------------------------------------------------------------------------------
 // Definition of functions
 // --------------------------------------------------------------------------------------------
+
+function exportDate($dateString)
+{
+	return date("Y-m-d H:i:s", strtotime($dateString));
+}
 
 function nowDate()
 {
@@ -287,7 +292,7 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 					$stmt->execute();
 					$stmt->bind_result($id, $username, $dateRegistered, $userAgent, $lastChanged, $lastUserAgent);
 					$stmt->fetch();
-					$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => $dateRegistered, "user_agent" => $userAgent, "last_changed" => $lastChanged, "last_user_agent" => $lastUserAgent));
+					$answer=array("user" => array("id" => $id, "username" => $username, "date_registered" => exportDate($dateRegistered), "user_agent" => $userAgent, "last_changed" => exportDate($lastChanged), "last_user_agent" => $lastUserAgent));
 					$answer_info=answerInfo(9,array("user"));
 				}
 				else if($res==-1)
@@ -366,7 +371,7 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 					while($stmt->fetch())
 					{
 						$count++;
-						array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => $lastModified));
+						array_push($notesSummary,array("id" => $id, "subject" => $subject, "last_modified" => exportDate($lastModified)));
 					}
 					$answer_info=answerInfo(4,array("count","notes_summary"));
 					$answer=array("count" => $count, "notes_summary" => $notesSummary);
@@ -402,7 +407,7 @@ else if($_SERVER["REQUEST_METHOD"]=="POST")
 						if($stmt->fetch())
 						{
 							$answer_info=answerInfo(5,array("note"));
-							$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => $dateAdded, "last_modified" => $lastModified, "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
+							$answer=array("note" => array("id" => $id, "subject" => $subject, "entry" => $entry, "date_added" => exportDate($dateAdded), "last_modified" => exportDate($lastModified), "locked" => $locked, "user_agent" => $userAgent, "last_user_agent" => $lastUserAgent));
 						}
 						else
 						{
