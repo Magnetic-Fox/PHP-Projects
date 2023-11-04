@@ -45,5 +45,5 @@ If you like to use any part of these codes in your software, just please give me
 In case you would like to make paid software and use parts of these codes - please, contact me before.
 
 *Bartłomiej "Magnetic-Fox" Węgrzyn,
-11th November, 2021
+11th November, 2021,
 4th November, 2023*
