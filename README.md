@@ -29,8 +29,8 @@ Here is a list of projects pushed to this repository.
 ```
 WarmUP          [03-04.11.2021]
 SQLTest         [04.11.2021]
-MIMETest        [07-08.11.2021]
-NoterAPI        [08-14.11.2021]
+MIMETest        [07-08.11.2021, 04.11.2023]
+NoterAPI        [08-14.11.2021, 07.02.2023]
 ```
 
 ## Disclaimer
@@ -45,4 +45,5 @@ If you like to use any part of these codes in your software, just please give me
 In case you would like to make paid software and use parts of these codes - please, contact me before.
 
 *Bartłomiej "Magnetic-Fox" Węgrzyn,
-11th November, 2021*
+11th November, 2021
+4th November, 2023*
