@@ -1,30 +1,16 @@
 # My Simple PHP Projects
 
-This is a simple repository containing my simple projects done in PHP language.
+This is a repository containing my simple projects done in PHP language.
 
 ## What is included in this repo?
 
 Some really simple projects done in PHP language. Mainly GET and POST actions handling and some communication with database (MySQL).
-Of course this repo lacks `mysql-connect.php` files from obvious reasons.
-However, those files looks like:
-```
-<?php
-
-$servername="";
-$username="";
-$password="";
-$dbname="";
-
-$conn=new mysqli($servername,$username,$password,$dbname);
-
-mysqli_set_charset($conn,"utf8");
-
-?>
-```
+Of course, most of these simple projects here needs to have a properly prepared `mysql-connect.php` file in their own directories to work.
+Nearly empty placeholder is provided for further information and use.
 
 ## Projects list
 
-Here is a list of projects pushed to this repository.
+Here is a list of projects contained in this repository.
 
 ```
 WarmUP          [03-04.11.2021]
