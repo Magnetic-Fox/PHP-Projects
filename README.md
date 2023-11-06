@@ -16,7 +16,8 @@ Here is a list of projects contained in this repository.
 WarmUP          [03-04.11.2021]
 SQLTest         [04.11.2021]
 MIMETest        [07-08.11.2021, 04.11.2023]
-NoterAPI        [08-14.11.2021, 07.02.2023]
+
+NoterAPI has been moved to its own repository under name Noter-Backend.
 ```
 
 ## Disclaimer
